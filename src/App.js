@@ -9,7 +9,7 @@ import Channels from './components/Channels'
 import Messages from './components/Messages'
 
 // ABIs
-import Dappcord from './abis/Dappcord.json'
+import Aloha from './abis/Aloha.json'
 
 // Config
 import config from './config.json';
@@ -18,12 +18,76 @@ import config from './config.json';
 const socket = io('ws://localhost:3030');
 
 function App() {
+  const [provider, setProvider] = useState(null)
+  const [account, setAccount] = useState(null)
 
+  const [aloha, setAloha] = useState(null)
+  const [channels, setChannels] = useState([])
+  const [currentChannel, setCurrentChannel] = useState(null)
+  const [messages, setMessages] = useState([])
+  const loadBlockchainData = async () =>{
+
+    const provider = new ethers.providers.Web3Provider(window.ethereum)
+    setProvider(provider)
+
+    const network = await provider.getNetwork()
+    const aloha = new ethers.Contract(config[network.chainId].Aloha.address, Aloha, provider)
+    setAloha(aloha) 
+
+    const totalChannels = await aloha.totalChannels()
+    const channels = []
+
+    for(var i =1; i<= totalChannels; i++){
+      const channel = await aloha.getChannel(i)
+      channels.push(channel)
+    }
+
+    setChannels(channels)
+
+    window.ethereum.on('accountsChanged', async () => {
+      window.location.reload()
+    })
+  }
+
+  useEffect(() => {
+    loadBlockchainData()
+
+    socket.on("connect",() =>{
+      //console.log("socket connected...")
+      socket.emit('get messages')
+
+    })
+
+    socket.on("new message",(messages) =>{
+      setMessages(messages)
+    })
+
+    socket.on("get messages",(messages) =>{
+      setMessages(messages)
+    })
+
+    return() =>{
+      socket.off('connect')
+      socket.off('new message')
+      socket.off('get messages')
+    }
+  }, [])
   return (
     <div>
-      <h1 style={{ textAlign: "center", padding: "15px" }}>Welcome to Dappcord</h1>
-
+      <Navigation account={account} setAccount={setAccount}/>
       <main>
+
+        <Servers/>
+        <Channels 
+          provider={provider}
+          account={account}
+          aloha={aloha}
+          channels={channels}
+          currentChannel={currentChannel}
+          setCurrentChannel={setCurrentChannel}
+        />
+        <Messages account={account} messages={messages} currentChannel={currentChannel}/>
+        
 
       </main>
     </div>

@@ -1,4 +1,4 @@
-# Dappcord
+# Aloha
 
 ## Technology Stack & Tools
 
